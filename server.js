@@ -12,6 +12,11 @@ var path = require('path');
 var logger = require('morgan');
 var bodyParser = require('body-parser');
 
+var mongoose = require('mongoose');
+var Character = require('./models/character');
+
+var config = require('./config');
+
 var app = express();
 
 app.set('port', process.env.PORT || 3000);
@@ -36,6 +41,29 @@ app.use(function(req, res) {
   });
 });
 
-app.listen(app.get('port'), function() {
+/**
+ * Socket.io stuff.
+ */
+var server = require('http').createServer(app);
+var io = require('socket.io')(server);
+var onlineUsers = 0;
+
+io.sockets.on('connection', function(socket) {
+  onlineUsers++;
+
+  io.sockets.emit('onlineUsers', { onlineUsers: onlineUsers });
+
+  socket.on('disconnect', function() {
+    onlineUsers--;
+    io.sockets.emit('onlineUsers', { onlineUsers: onlineUsers });
+  });
+});
+
+mongoose.connect(config.database);
+mongoose.connection.on('error', function() {
+  console.info('Error: Could not connect to MongoDB. Did you forget to run `mongod`?');
+});
+
+server.listen(app.get('port'), function() {
   console.log('Express server listening on port ' + app.get('port'));
 });
