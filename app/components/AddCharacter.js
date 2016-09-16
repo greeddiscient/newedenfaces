@@ -38,7 +38,6 @@ class AddCharacter extends React.Component {
 
     if (name && gender) {
       AddCharacterActions.addCharacter(name, gender);
-      console.log("press button")
     }
   }
 

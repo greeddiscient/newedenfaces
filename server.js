@@ -1,11 +1,15 @@
+
 // Babel ES6/JSX Compiler
 require('babel-register');
 
 var _ = require('underscore');
-
 var async = require('async');
 var request = require('request');
 var xml2js = require('xml2js');
+var config = require('./config');
+
+var mongoose = require('mongoose');
+var Character = require('./models/character');
 
 var swig  = require('swig');
 var React = require('react');
@@ -18,12 +22,12 @@ var path = require('path');
 var logger = require('morgan');
 var bodyParser = require('body-parser');
 
-var mongoose = require('mongoose');
-var Character = require('./models/character');
-
-var config = require('./config');
-
 var app = express();
+
+mongoose.connect(config.database);
+mongoose.connection.on('error', function() {
+  console.info('Error: Could not connect to MongoDB. Did you forget to run `mongod`?');
+});
 
 app.set('port', process.env.PORT || 3000);
 app.use(logger('dev'));
@@ -266,22 +270,6 @@ app.get('/api/characters/top', function(req, res, next) {
     });
 });
 
-app.use(function(req, res) {
-  Router.match({ routes: routes.default, location: req.url }, function(err, redirectLocation, renderProps) {
-    if (err) {
-      res.status(500).send(err.message)
-    } else if (redirectLocation) {
-      res.status(302).redirect(redirectLocation.pathname + redirectLocation.search)
-    } else if (renderProps) {
-      var html = ReactDOM.renderToString(React.createElement(Router.RoutingContext, renderProps));
-      var page = swig.renderFile('views/index.html', { html: html });
-      res.status(200).send(page);
-    } else {
-      res.status(404).send('Page Not Found')
-    }
-  });
-});
-
 /**
  * GET /api/characters/shame
  * Returns 100 lowest ranked characters.
@@ -446,6 +434,21 @@ app.get('/api/stats', function(req, res, next) {
     });
 });
 
+app.use(function(req, res) {
+  Router.match({ routes: routes.default, location: req.url }, function(err, redirectLocation, renderProps) {
+    if (err) {
+      res.status(500).send(err.message)
+    } else if (redirectLocation) {
+      res.status(302).redirect(redirectLocation.pathname + redirectLocation.search)
+    } else if (renderProps) {
+      var html = ReactDOM.renderToString(React.createElement(Router.RoutingContext, renderProps));
+      var page = swig.renderFile('views/index.html', { html: html });
+      res.status(200).send(page);
+    } else {
+      res.status(404).send('Page Not Found')
+    }
+  });
+});
 
 /**
  * Socket.io stuff.
@@ -463,11 +466,6 @@ io.sockets.on('connection', function(socket) {
     onlineUsers--;
     io.sockets.emit('onlineUsers', { onlineUsers: onlineUsers });
   });
-});
-
-mongoose.connect(config.database);
-mongoose.connection.on('error', function() {
-  console.info('Error: Could not connect to MongoDB. Did you forget to run `mongod`?');
 });
 
 server.listen(app.get('port'), function() {
